@@ -1,0 +1,41 @@
+# CampusPulse AI — .gitignore
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.env
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Model weights (large files — store separately)
+models/nlp/distilbert_absa/
+models/vision/*.pt
+models/vision/*.keras
+
+# Data & DB
+data/tickets.sqlite
+synthetic_images/
+
+# Reports (generated)
+reports/
+
+# Streamlit cache
+.streamlit/
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db

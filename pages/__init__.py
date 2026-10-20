@@ -1,0 +1,3 @@
+"""
+CampusPulse AI — Pages Package
+"""
