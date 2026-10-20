@@ -10,19 +10,22 @@
 
 ```
 CampusPulse AI/
-├── app.py                        ← Streamlit entry point (run this)
+├── server.py                     ← Flask web server entry point (run this)
 ├── config.py                     ← Centralised settings & domain constants
 ├── requirements.txt
 ├── .env.example                  ← Copy to .env and configure
 │
+├── templates/                    ← Light-mode HTML5 + Tailwind CSS templates
+│   ├── student.html              ← Student Grievance Portal & real-time result
+│   └── admin.html                ← Admin Triage Dashboard & dispatch console
+│
+├── static/                       ← Static assets and uploaded defect proof
+│   └── uploads/
+│
 ├── engines/                      ← ML inference engines (decoupled)
 │   ├── nlp_engine.py             ← DistilBERT ABSA + Shannon entropy
-│   ├── vision_engine.py          ← MobileNetV2 defect classifier
+│   └── vision_engine.py          ← MobileNetV2 defect classifier
 │   └── fuzzy_engine.py           ← Mamdani FIS (13 rules, centroid defuzz)
-│
-├── pages/                        ← Streamlit page components
-│   ├── student_portal.py         ← Complaint submission form + live AI hints
-│   └── admin_dashboard.py        ← Triage board + charts + status dispatch
 │
 ├── data/
 │   └── ticket_store.py           ← SQLite persistence + mock data seeder
@@ -47,15 +50,16 @@ pip install -r requirements.txt
 ### 2. Configure environment
 ```bash
 cp .env.example .env
-# Edit .env — set USE_MOCK_MODELS=true for demo (no model weights needed)
+# Edit .env — set USE_MOCK_MODELS=true for demo (or false if models/ present)
 ```
 
-### 3. Run the app
+### 3. Run the Flask Web Application
 ```bash
-streamlit run app.py
+python server.py
 ```
+Open **http://127.0.0.1:5000** for the Student Portal, and **http://127.0.0.1:5000/admin** for the Admin Dashboard.
 
-The app starts with **12 pre-seeded mock tickets** and runs fully in demo mode with no GPU or model weights required.
+The app starts with pre-seeded mock tickets and executes the full DistilBERT + MobileNetV2 + Fuzzy Triage pipeline.
 
 ---
 
