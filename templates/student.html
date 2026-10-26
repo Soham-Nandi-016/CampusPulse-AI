@@ -341,70 +341,170 @@
       <!-- ── RIGHT COLUMN: Real-Time Submission Result Card (5 Cols) ─────── -->
       <section class="lg:col-span-5">
 
-        <!-- PRE-SUBMISSION PLACEHOLDER / PIPELINE PREVIEW -->
+        <!-- PRE-SUBMISSION PLACEHOLDER / PIPELINE PREVIEW & LIVE INTENT DASHBOARD -->
         <div id="preSubmissionCard" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-7 space-y-6">
-          <div class="flex items-center gap-2 pb-3 border-b border-slate-100">
-            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">
-              ⚡
+
+          <!-- IDLE STATE (Shown before student starts typing) -->
+          <div id="preSubmissionIdle" class="space-y-6">
+            <div class="flex items-center gap-2 pb-3 border-b border-slate-100">
+              <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">
+                ⚡
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-slate-900">AI Triage Engine Pipeline</h2>
+                <p class="text-[11px] text-slate-500">Live computation once you submit</p>
+              </div>
             </div>
+
+            <!-- Explanatory Pipeline Steps -->
+            <div class="space-y-4">
+              <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
+                <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</span>
+                <div>
+                  <p class="text-xs font-bold text-slate-900">DistilBERT Text Engine</p>
+                  <p class="text-[11px] text-slate-600 mt-0.5">Aspect-based sentiment analysis, urgency detection, and category probability distribution.</p>
+                </div>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
+                <span class="w-7 h-7 rounded-lg bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
+                <div>
+                  <p class="text-xs font-bold text-slate-900">MobileNetV2 Visual Engine</p>
+                  <p class="text-[11px] text-slate-600 mt-0.5">Defect presence confidence score & physical damage verification from uploaded photo.</p>
+                </div>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
+                <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</span>
+                <div>
+                  <p class="text-xs font-bold text-slate-900">Mamdani Fuzzy Inference (FIS)</p>
+                  <p class="text-[11px] text-slate-600 mt-0.5">Centroid defuzzification merging NLP + Vision into an objective 0–100 Priority Score.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Severity Threshold Reference Scale (Light Warm) -->
+            <div class="pt-2 border-t border-slate-100">
+              <p class="text-xs font-semibold text-slate-700 mb-2">Priority Score Severity Thresholds</p>
+              <div class="grid grid-cols-4 gap-1.5 text-center text-[10px] font-semibold">
+                <div class="p-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <div>Low</div>
+                  <div class="text-[9px] opacity-75">0 – 35</div>
+                </div>
+                <div class="p-2 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+                  <div>Medium</div>
+                  <div class="text-[9px] opacity-75">35 – 65</div>
+                </div>
+                <div class="p-2 rounded-lg bg-orange-50 text-orange-800 border border-orange-200">
+                  <div>High</div>
+                  <div class="text-[9px] opacity-75">65 – 85</div>
+                </div>
+                <div class="p-2 rounded-lg bg-rose-50 text-rose-800 border border-rose-200">
+                  <div>Critical</div>
+                  <div class="text-[9px] opacity-75">85 – 100</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="text-center p-3 rounded-xl bg-slate-100/70 text-slate-500 text-xs">
+              👈 Start typing your issue description on the left to see real-time AI intent analysis here.
+            </div>
+          </div>
+
+          <!-- LIVE INTENT DETECTION ACTIVE DASHBOARD (Shown continuously during typing) -->
+          <div id="preSubmissionLive" class="hidden space-y-5">
+            <!-- Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center font-bold text-sm shadow-sm shadow-brand-500/20">
+                  ⚡
+                </div>
+                <div>
+                  <h2 class="text-sm font-bold text-slate-900">Real-time Intent Detection</h2>
+                  <p class="text-[11px] text-slate-500">Live DistilBERT ABSA & Urgency Inference</p>
+                </div>
+              </div>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Streaming Analysis
+              </span>
+            </div>
+
+            <!-- Top Predicted Category Banner -->
+            <div class="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100/90 flex items-center justify-between">
+              <div>
+                <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Suggested Primary Category</span>
+                <div class="mt-1 flex items-center gap-2">
+                  <span id="livePanelCatIcon" class="text-xl">📌</span>
+                  <span id="livePanelCatName" class="text-base font-extrabold text-slate-900">—</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Top Match</span>
+                <div id="livePanelCatProb" class="text-lg font-mono font-bold text-brand-600">0%</div>
+              </div>
+            </div>
+
+            <!-- Real-time Signal Breakdown -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Live Neural Signals</h3>
+                <span id="livePanelSentimentBadge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border">
+                  Neutral
+                </span>
+              </div>
+
+              <!-- Urgency Signal -->
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="flex justify-between text-xs text-slate-600 mb-1.5">
+                  <span class="font-semibold flex items-center gap-1">🔥 Urgency Signal</span>
+                  <span id="livePanelUrgencyVal" class="font-mono font-bold text-slate-800">0%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-200/80 overflow-hidden">
+                  <div id="livePanelUrgencyBar" class="h-full bg-rose-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Negativity Signal -->
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="flex justify-between text-xs text-slate-600 mb-1.5">
+                  <span class="font-semibold flex items-center gap-1">😤 Sentiment Negativity</span>
+                  <span id="livePanelNegativityVal" class="font-mono font-bold text-slate-800">0%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-200/80 overflow-hidden">
+                  <div id="livePanelNegativityBar" class="h-full bg-orange-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Entropy / Ambiguity -->
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="flex justify-between text-xs text-slate-600 mb-1.5">
+                  <span class="font-semibold flex items-center gap-1">🌀 Ambiguity (Entropy)</span>
+                  <span id="livePanelEntropyVal" class="font-mono font-bold text-slate-800">0.00</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-200/80 overflow-hidden">
+                  <div id="livePanelEntropyBar" class="h-full bg-violet-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category Probability Distribution -->
             <div>
-              <h2 class="text-sm font-bold text-slate-900">AI Triage Engine Pipeline</h2>
-              <p class="text-[11px] text-slate-500">Live computation once you submit</p>
-            </div>
-          </div>
-
-          <!-- Explanatory Pipeline Steps -->
-          <div class="space-y-4">
-            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
-              <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</span>
-              <div>
-                <p class="text-xs font-bold text-slate-900">DistilBERT Text Engine</p>
-                <p class="text-[11px] text-slate-600 mt-0.5">Aspect-based sentiment analysis, urgency detection, and category probability distribution.</p>
+              <h4 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Category Probability Distribution</h4>
+              <div id="livePanelCatDistribution" class="space-y-1.5">
+                <!-- Dynamically populated -->
               </div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
-              <span class="w-7 h-7 rounded-lg bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
-              <div>
-                <p class="text-xs font-bold text-slate-900">MobileNetV2 Visual Engine</p>
-                <p class="text-[11px] text-slate-600 mt-0.5">Defect presence confidence score & physical damage verification from uploaded photo.</p>
-              </div>
+            <!-- Flagged High-Priority Keywords -->
+            <div id="livePanelKeywordsBox" class="hidden">
+              <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Flagged High-Priority Keywords</p>
+              <div id="livePanelKeywordsList" class="flex flex-wrap gap-1.5"></div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
-              <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</span>
-              <div>
-                <p class="text-xs font-bold text-slate-900">Mamdani Fuzzy Inference (FIS)</p>
-                <p class="text-[11px] text-slate-600 mt-0.5">Centroid defuzzification merging NLP + Vision into an objective 0–100 Priority Score.</p>
-              </div>
+            <div class="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-2">
+              <span class="text-base">💡</span>
+              <span>Submit the grievance (with photo) to trigger MobileNetV2 defect verification and full Mamdani Fuzzy triage.</span>
             </div>
-          </div>
-
-          <!-- Severity Threshold Reference Scale (Light Warm) -->
-          <div class="pt-2 border-t border-slate-100">
-            <p class="text-xs font-semibold text-slate-700 mb-2">Priority Score Severity Thresholds</p>
-            <div class="grid grid-cols-4 gap-1.5 text-center text-[10px] font-semibold">
-              <div class="p-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
-                <div>Low</div>
-                <div class="text-[9px] opacity-75">0 – 35</div>
-              </div>
-              <div class="p-2 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
-                <div>Medium</div>
-                <div class="text-[9px] opacity-75">35 – 65</div>
-              </div>
-              <div class="p-2 rounded-lg bg-orange-50 text-orange-800 border border-orange-200">
-                <div>High</div>
-                <div class="text-[9px] opacity-75">65 – 85</div>
-              </div>
-              <div class="p-2 rounded-lg bg-rose-50 text-rose-800 border border-rose-200">
-                <div>Critical</div>
-                <div class="text-[9px] opacity-75">85 – 100</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="text-center p-3 rounded-xl bg-slate-100/70 text-slate-500 text-xs">
-            👈 Complete the form on the left to view real-time triage scoring.
           </div>
         </div>
 
@@ -624,9 +724,33 @@
     const formErrorMessage = document.getElementById('formErrorMessage');
 
     const preSubmissionCard = document.getElementById('preSubmissionCard');
+    const preSubmissionIdle = document.getElementById('preSubmissionIdle');
+    const preSubmissionLive = document.getElementById('preSubmissionLive');
+    const livePanelCatIcon = document.getElementById('livePanelCatIcon');
+    const livePanelCatName = document.getElementById('livePanelCatName');
+    const livePanelCatProb = document.getElementById('livePanelCatProb');
+    const livePanelSentimentBadge = document.getElementById('livePanelSentimentBadge');
+    const livePanelUrgencyVal = document.getElementById('livePanelUrgencyVal');
+    const livePanelUrgencyBar = document.getElementById('livePanelUrgencyBar');
+    const livePanelNegativityVal = document.getElementById('livePanelNegativityVal');
+    const livePanelNegativityBar = document.getElementById('livePanelNegativityBar');
+    const livePanelEntropyVal = document.getElementById('livePanelEntropyVal');
+    const livePanelEntropyBar = document.getElementById('livePanelEntropyBar');
+    const livePanelCatDistribution = document.getElementById('livePanelCatDistribution');
+    const livePanelKeywordsBox = document.getElementById('livePanelKeywordsBox');
+    const livePanelKeywordsList = document.getElementById('livePanelKeywordsList');
+
     const resultCard = document.getElementById('resultCard');
     const resetFormBtn = document.getElementById('resetFormBtn');
     const copyTicketBtn = document.getElementById('copyTicketBtn');
+
+    const CATEGORY_ICONS = {
+      "Academics": "📚",
+      "Facilities": "🏛️",
+      "Electrical / IT": "⚡",
+      "Sanitation": "🧹",
+      "Administration": "🏫"
+    };
 
     // Debounce timer for live NLP
     let nlpDebounceTimer = null;
@@ -645,13 +769,12 @@
       }
 
       clearTimeout(nlpDebounceTimer);
-      if (len >= 15) {
+      if (len >= 3) {
         nlpDebounceTimer = setTimeout(() => {
           fetchLiveNLP(text);
-        }, 350);
+        }, 200);
       } else {
-        liveNlpBox.classList.add('hidden');
-        aiSuggestionBadge.classList.add('hidden');
+        resetLiveNLPUI();
       }
     });
 
@@ -665,25 +788,153 @@
         if (!resp.ok) return;
         const data = await resp.json();
         if (data.success && data.suggested_category) {
-          liveNlpBox.classList.remove('hidden');
-          aiSuggestionBadge.classList.remove('hidden');
-          liveNlpCat.textContent = data.suggested_category;
-          liveNlpUrgency.textContent = `${Math.round(data.urgency_score * 100)}%`;
-          liveNlpSentiment.textContent = data.sentiment_label;
-
-          // Auto-select in category dropdown if not manually altered
-          if (categorySelect.dataset.userModified !== 'true') {
-            for (let opt of categorySelect.options) {
-              if (opt.value === data.suggested_category) {
-                categorySelect.value = data.suggested_category;
-                break;
-              }
-            }
-          }
+          updateLiveNLPUI(data);
         }
       } catch (err) {
         console.warn("Live NLP analysis error:", err);
       }
+    }
+
+    function updateLiveNLPUI(data) {
+      // 1. Update left-hand UI box under textarea
+      liveNlpBox.classList.remove('hidden');
+      aiSuggestionBadge.classList.remove('hidden');
+      liveNlpCat.textContent = data.suggested_category;
+
+      const urgPct = Math.round((data.urgency_score || 0) * 100);
+      const negPct = Math.round((data.negativity_score || 0) * 100);
+      const entropy = Number(data.entropy || 0);
+
+      liveNlpUrgency.textContent = `${urgPct}%`;
+      if (urgPct >= 50) {
+        liveNlpUrgency.className = 'font-bold text-rose-600';
+      } else if (urgPct > 0) {
+        liveNlpUrgency.className = 'font-bold text-amber-600';
+      } else {
+        liveNlpUrgency.className = 'font-bold text-slate-800';
+      }
+
+      liveNlpSentiment.textContent = data.sentiment_label;
+      if (data.sentiment_label === 'Negative') {
+        liveNlpSentiment.className = 'font-bold text-rose-600';
+      } else if (data.sentiment_label === 'Mixed') {
+        liveNlpSentiment.className = 'font-bold text-amber-600';
+      } else {
+        liveNlpSentiment.className = 'font-bold text-emerald-600';
+      }
+
+      // Auto-select in category dropdown if not manually altered
+      if (categorySelect.dataset.userModified !== 'true' && data.suggested_category) {
+        for (let opt of categorySelect.options) {
+          if (opt.value === data.suggested_category) {
+            categorySelect.value = data.suggested_category;
+            break;
+          }
+        }
+      }
+
+      // 2. Update Right-Hand Panel
+      if (!resultCard.classList.contains('hidden')) {
+        resultCard.classList.add('hidden');
+        preSubmissionCard.classList.remove('hidden');
+      }
+      preSubmissionIdle.classList.add('hidden');
+      preSubmissionLive.classList.remove('hidden');
+
+      // Top Category
+      const topCat = data.suggested_category || 'Facilities';
+      livePanelCatIcon.textContent = CATEGORY_ICONS[topCat] || '📌';
+      livePanelCatName.textContent = topCat;
+      const topProbPct = data.category_probs && data.category_probs[topCat]
+        ? Math.round(data.category_probs[topCat] * 100)
+        : 50;
+      livePanelCatProb.textContent = `${topProbPct}%`;
+
+      // Live Urgency
+      livePanelUrgencyVal.textContent = `${urgPct}%`;
+      livePanelUrgencyBar.style.width = `${urgPct}%`;
+      if (urgPct >= 50) {
+        livePanelUrgencyBar.className = 'h-full bg-rose-500 rounded-full transition-all duration-300';
+      } else if (urgPct > 0) {
+        livePanelUrgencyBar.className = 'h-full bg-amber-500 rounded-full transition-all duration-300';
+      } else {
+        livePanelUrgencyBar.className = 'h-full bg-slate-300 rounded-full transition-all duration-300';
+      }
+
+      // Live Negativity
+      livePanelNegativityVal.textContent = `${negPct}%`;
+      livePanelNegativityBar.style.width = `${negPct}%`;
+
+      // Live Entropy
+      livePanelEntropyVal.textContent = entropy.toFixed(2);
+      livePanelEntropyBar.style.width = `${Math.min(Math.round(entropy * 100), 100)}%`;
+
+      // Sentiment Badge
+      livePanelSentimentBadge.textContent = data.sentiment_label;
+      if (data.sentiment_label === 'Negative') {
+        livePanelSentimentBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200';
+      } else if (data.sentiment_label === 'Mixed') {
+        livePanelSentimentBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200';
+      } else {
+        livePanelSentimentBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200';
+      }
+
+      // Category Probability Distribution
+      if (data.category_probs) {
+        livePanelCatDistribution.innerHTML = '';
+        const sortedCats = Object.entries(data.category_probs).sort((a, b) => b[1] - a[1]);
+        sortedCats.forEach(([cat, prob]) => {
+          const pct = Math.round(prob * 100);
+          const icon = CATEGORY_ICONS[cat] || '📌';
+          const isTop = cat === topCat;
+          const barColor = isTop ? 'bg-brand-600' : 'bg-slate-300';
+          const textWeight = isTop ? 'font-bold text-slate-900' : 'text-slate-600';
+
+          const row = document.createElement('div');
+          row.className = 'text-xs';
+          row.innerHTML = `
+            <div class="flex justify-between mb-0.5 ${textWeight}">
+              <span>${icon} ${cat}</span>
+              <span class="font-mono">${pct}%</span>
+            </div>
+            <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <div class="h-full ${barColor} rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+          `;
+          livePanelCatDistribution.appendChild(row);
+        });
+      }
+
+      // Flagged Keywords
+      if (data.keywords && data.keywords.length > 0) {
+        livePanelKeywordsBox.classList.remove('hidden');
+        livePanelKeywordsList.innerHTML = '';
+        data.keywords.forEach(kw => {
+          const chip = document.createElement('span');
+          chip.className = 'px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-mono text-[10px] font-medium border border-indigo-200';
+          chip.textContent = `#${kw}`;
+          livePanelKeywordsList.appendChild(chip);
+        });
+      } else {
+        livePanelKeywordsBox.classList.add('hidden');
+      }
+
+      // Also sync resultCard bars if present
+      const resUrgVal = document.getElementById('resUrgencyVal');
+      const resUrgBar = document.getElementById('resUrgencyBar');
+      const resNegVal = document.getElementById('resNegativityVal');
+      const resNegBar = document.getElementById('resNegativityBar');
+      if (resUrgVal) resUrgVal.textContent = `${urgPct}%`;
+      if (resUrgBar) resUrgBar.style.width = `${urgPct}%`;
+      if (resNegVal) resNegVal.textContent = `${negPct}%`;
+      if (resNegBar) resNegBar.style.width = `${negPct}%`;
+    }
+
+    function resetLiveNLPUI() {
+      liveNlpBox.classList.add('hidden');
+      aiSuggestionBadge.classList.add('hidden');
+      preSubmissionLive.classList.add('hidden');
+      preSubmissionIdle.classList.remove('hidden');
     }
 
     categorySelect.addEventListener('change', () => {
@@ -876,9 +1127,9 @@
       fileInput.value = '';
       dropzonePreview.classList.add('hidden');
       dropzoneEmpty.classList.remove('hidden');
-      liveNlpBox.classList.add('hidden');
-      aiSuggestionBadge.classList.add('hidden');
       delete categorySelect.dataset.userModified;
+
+      resetLiveNLPUI();
 
       resultCard.classList.add('hidden');
       preSubmissionCard.classList.remove('hidden');

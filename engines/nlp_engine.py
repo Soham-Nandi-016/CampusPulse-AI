@@ -113,8 +113,10 @@ class NLPResult:
 _URGENCY_WORDS: list[str] = [
     "urgent", "immediately", "asap", "emergency", "broken", "damaged",
     "flooding", "fire", "dangerous", "unsafe", "critical", "severe",
-    "not working", "failure", "collapse", "leaking", "black-out", "outage",
+    "not working", "failure", "collapse", "leaking", "leakage", "black-out", "outage",
     "serious", "dire", "desperate",
+    "dirty", "trash", "garbage", "stinking", "stink", "overflowing",
+    "smell", "filthy", "unhygienic", "blocked", "water",
 ]
 
 _NEGATIVE_WORDS: list[str] = [
@@ -122,6 +124,7 @@ _NEGATIVE_WORDS: list[str] = [
     "worst", "bad", "awful", "unacceptable", "negligent", "ignored",
     "useless", "broken", "failed", "never", "no one", "corrupt",
     "waste", "pathetic",
+    "stinking", "garbage", "trash", "foul", "unclean",
 ]
 
 _CATEGORY_KEYWORDS: dict[str, list[str]] = {
@@ -133,7 +136,7 @@ _CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "Facilities": [
         "chair", "desk", "classroom", "library", "bench", "building",
         "roof", "wall", "window", "door", "stairs", "lift", "elevator",
-        "furniture", "room", "hall", "auditorium", "sports", "canteen",
+        "furniture", "room", "hall", "auditorium", "sports", "canteen", "floor",
     ],
     "Electrical / IT": [
         "electricity", "power", "fan", "light", "ac", "wifi", "internet",
@@ -142,7 +145,8 @@ _CATEGORY_KEYWORDS: dict[str, list[str]] = {
     ],
     "Sanitation": [
         "toilet", "washroom", "bathroom", "garbage", "trash", "smell",
-        "stink", "water", "drainage", "sewage", "dirty", "hygiene",
+        "stink", "stinking", "water", "drainage", "sewage", "dirty", "hygiene",
+        "unhygienic", "filthy", "overflowing",
         "cockroach", "pest", "rat", "clean", "sweep", "mop", "dust",
     ],
     "Administration": [
@@ -159,7 +163,6 @@ def _extract_keywords(text: str) -> list[str]:
     lower = text.lower()
     found = []
     for w in _URGENCY_WORDS + _NEGATIVE_WORDS:
-        # Use word-boundary search to avoid false matches (e.g. "lab" in "elaborate")
         pattern = r'\b' + re.escape(w) + r'\b'
         if re.search(pattern, lower) and w not in found:
             found.append(w)
@@ -171,7 +174,7 @@ def _heuristic_urgency(text: str) -> float:
     import re
     lower = text.lower()
     hits = sum(1 for w in _URGENCY_WORDS if re.search(r'\b' + re.escape(w) + r'\b', lower))
-    return min(hits / max(len(_URGENCY_WORDS) * 0.25, 1), 1.0)
+    return round(min(hits / 5.0, 1.0), 4)
 
 
 def _heuristic_negativity(text: str) -> float:
@@ -179,20 +182,16 @@ def _heuristic_negativity(text: str) -> float:
     import re
     lower = text.lower()
     hits = sum(1 for w in _NEGATIVE_WORDS if re.search(r'\b' + re.escape(w) + r'\b', lower))
-    # Normalise against a reasonable saturation point
-    return min(hits / max(len(_NEGATIVE_WORDS) * 0.20, 1), 1.0)
+    return round(min(hits / 4.0, 1.0), 4)
 
 
 def _heuristic_category_probs(text: str) -> dict[str, float]:
-    """Assign category probabilities from keyword overlap (whole-word matches)."""
+    """Assign category probabilities from keyword overlap counts (whole-word match)."""
     import re
     lower = text.lower()
     scores: dict[str, float] = {}
     for cat, kws in _CATEGORY_KEYWORDS.items():
-        scores[cat] = sum(
-            1 for kw in kws
-            if re.search(r'\b' + re.escape(kw) + r'\b', lower)
-        )
+        scores[cat] = sum(1 for kw in kws if re.search(r'\b' + re.escape(kw) + r'\b', lower))
 
     total = sum(scores.values()) or 1.0
     probs = {cat: round(s / total, 4) for cat, s in scores.items()}
@@ -359,9 +358,9 @@ class NLPEngine:
         entropy = _shannon_entropy(cat_probs)
         keywords = _extract_keywords(text)
 
-        if negativity >= 0.6:
+        if negativity >= 0.5:
             sentiment_label = "Negative"
-        elif negativity >= 0.3:
+        elif negativity >= 0.2:
             sentiment_label = "Mixed"
         else:
             sentiment_label = "Neutral"

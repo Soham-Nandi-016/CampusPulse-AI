@@ -132,11 +132,15 @@ def analyze_text():
     try:
         data = request.get_json(silent=True) or {}
         text = data.get("text", "").strip()
-        if not text or len(text) < 10:
+        if not text or len(text) < 3:
             return jsonify({
+                "success": False,
                 "suggested_category": None,
+                "category_probs": {},
                 "urgency_score": 0.0,
                 "negativity_score": 0.0,
+                "sentiment_label": "Neutral",
+                "entropy": 0.0,
                 "keywords": [],
             })
 
@@ -151,7 +155,7 @@ def analyze_text():
             "negativity_score": round(result.negativity_score, 4),
             "sentiment_label": result.sentiment_label,
             "entropy": round(result.entropy, 4),
-            "keywords": result.keywords[:5],
+            "keywords": result.keywords[:8],
         })
     except Exception as exc:
         logger.error(f"Error in /api/analyze-text: {exc}", exc_info=True)
