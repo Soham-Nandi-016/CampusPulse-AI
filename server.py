@@ -154,7 +154,7 @@ def analyze_text():
             "keywords": result.keywords[:5],
         })
     except Exception as exc:
-        logger.error(f"Error in /api/analyze-text: {exc}")
+        logger.error(f"Error in /api/analyze-text: {exc}", exc_info=True)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -205,7 +205,10 @@ def submit_ticket():
         if uploaded_file and uploaded_file.filename and _is_allowed_image(uploaded_file.filename):
             try:
                 image_bytes = uploaded_file.read()
+                # Re-seek to start: PIL needs to read from byte 0
                 pil_img = Image.open(io.BytesIO(image_bytes))
+                pil_img.verify()          # raises if corrupt / not a real image
+                pil_img = Image.open(io.BytesIO(image_bytes))  # re-open after verify()
 
                 # Save file to uploads folder
                 ext = secure_filename(uploaded_file.filename).rsplit(".", 1)[-1].lower()

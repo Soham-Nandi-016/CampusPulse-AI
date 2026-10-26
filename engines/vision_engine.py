@@ -50,17 +50,27 @@ except ImportError:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Defect taxonomy — binary: defect present / not present
+# Defect taxonomy
+# Order MUST match the training notebook (notebooks/CampusPulse_Model_Training.ipynb)
+# Indices 0-5 correspond to the defect_class values used in generate_synthetic_image().
+# DO NOT reorder — the saved model weights encode this exact class-to-index mapping.
 # ─────────────────────────────────────────────────────────────────────────────
 
 DEFECT_LABELS: list[str] = [
-    "Broken / Damaged Infrastructure",
-    "Water Leakage / Flooding",
-    "Dirty / Unsanitary Conditions",
-    "Electrical Hazard",
-    "Structural Damage",
-    "Normal / No Defect",
+    "Broken / Damaged Infrastructure",   # class 0  (grey rectangles / debris)
+    "Water Leakage / Flooding",           # class 1  (blue gradient)
+    "Dirty / Unsanitary Conditions",      # class 2  (brown blotches)
+    "Electrical Hazard",                  # class 3  (dark + spark lines)
+    "Structural Damage",                  # class 4  (grey wall + crack)
+    "Normal / No Defect",                 # class 5  (bright uniform background)
 ]
+
+# Index of the "no defect" class — used for confidence gating
+_NORMAL_CLASS_IDX: int = 5
+
+# Minimum single-class probability required to assert a defect label.
+# Below this threshold the image is labelled "Normal / No Defect" regardless.
+_DEFECT_CONF_THRESHOLD: float = 0.40
 
 # ImageNet preprocessing transform
 _IMAGENET_TRANSFORM = None
@@ -233,16 +243,61 @@ class VisionEngine:
         tensor = _IMAGENET_TRANSFORM(image.convert("RGB")).unsqueeze(0).to(self._device)
         with torch.no_grad():
             logits = self._model(tensor)
-            probs = torch.softmax(logits, dim=-1).squeeze().tolist()
+            probs_tensor = torch.softmax(logits, dim=-1).squeeze()
+            probs: list[float] = probs_tensor.tolist()
+
+        # ── Raw prediction debug logging ──────────────────────────────────────
+        pred_idx: int = int(probs_tensor.argmax().item())
+        pred_label: str = DEFECT_LABELS[pred_idx]
+        logger.debug(
+            "[VisionEngine] Raw logits: {}".format(
+                [round(float(x), 4) for x in logits.squeeze().tolist()]
+            )
+        )
+        logger.debug(
+            "[VisionEngine] Softmax probs: {}".format(
+                {lbl: round(p, 4) for lbl, p in zip(DEFECT_LABELS, probs)}
+            )
+        )
+        logger.debug(
+            f"[VisionEngine] Predicted class index: {pred_idx} → '{pred_label}' "
+            f"(prob={round(probs[pred_idx], 4)})"
+        )
 
         class_probs = {label: round(float(p), 4) for label, p in zip(DEFECT_LABELS, probs)}
-        defect_classes = [l for l in DEFECT_LABELS if l != "Normal / No Defect"]
-        defect_conf = sum(class_probs.get(l, 0) for l in defect_classes)
-        best = max(defect_classes, key=lambda l: class_probs.get(l, 0))
+
+        # ── Confidence gating ─────────────────────────────────────────────────
+        # Use the single top-class probability as the confidence signal.
+        # Summing all non-Normal probs inflated confidence for clean images
+        # (e.g. a fan room scored 0.84 because 5 low probs summed to 0.84).
+        top_defect_prob: float = 0.0
+        best_defect_label: str = "Normal / No Defect"
+
+        for label in DEFECT_LABELS:
+            if label == "Normal / No Defect":
+                continue
+            p = class_probs[label]
+            if p > top_defect_prob:
+                top_defect_prob = p
+                best_defect_label = label
+
+        # Only assert a defect if the model is genuinely confident in one class
+        if top_defect_prob >= _DEFECT_CONF_THRESHOLD:
+            defect_label = best_defect_label
+            confidence = round(top_defect_prob, 4)
+        else:
+            defect_label = "Normal / No Defect"
+            confidence = round(top_defect_prob, 4)  # still expose for transparency
+
+        logger.debug(
+            f"[VisionEngine] Final decision: '{defect_label}' "
+            f"(top_defect_prob={round(top_defect_prob, 4)}, "
+            f"threshold={_DEFECT_CONF_THRESHOLD})"
+        )
 
         return VisionResult(
-            confidence=round(defect_conf, 4),
-            defect_label=best if defect_conf > 0.4 else "Normal / No Defect",
+            confidence=confidence,
+            defect_label=defect_label,
             class_probs=class_probs,
             is_valid_image=True,
         )

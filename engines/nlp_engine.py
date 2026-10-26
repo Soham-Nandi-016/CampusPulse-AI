@@ -154,36 +154,45 @@ _CATEGORY_KEYWORDS: dict[str, list[str]] = {
 
 
 def _extract_keywords(text: str) -> list[str]:
-    """Return urgency/negative keywords found in *text*."""
+    """Return urgency/negative keywords found in *text* (whole-word match only)."""
+    import re
     lower = text.lower()
     found = []
     for w in _URGENCY_WORDS + _NEGATIVE_WORDS:
-        if w in lower and w not in found:
+        # Use word-boundary search to avoid false matches (e.g. "lab" in "elaborate")
+        pattern = r'\b' + re.escape(w) + r'\b'
+        if re.search(pattern, lower) and w not in found:
             found.append(w)
     return found[:8]
 
 
 def _heuristic_urgency(text: str) -> float:
-    """Compute a [0, 1] urgency score from keyword density."""
+    """Compute a [0, 1] urgency score from keyword density (whole-word match)."""
+    import re
     lower = text.lower()
-    hits = sum(1 for w in _URGENCY_WORDS if w in lower)
+    hits = sum(1 for w in _URGENCY_WORDS if re.search(r'\b' + re.escape(w) + r'\b', lower))
     return min(hits / max(len(_URGENCY_WORDS) * 0.25, 1), 1.0)
 
 
 def _heuristic_negativity(text: str) -> float:
-    """Compute a [0, 1] negativity score from negative keyword density."""
+    """Compute a [0, 1] negativity score from negative keyword density (whole-word match)."""
+    import re
     lower = text.lower()
-    hits = sum(1 for w in _NEGATIVE_WORDS if w in lower)
+    hits = sum(1 for w in _NEGATIVE_WORDS if re.search(r'\b' + re.escape(w) + r'\b', lower))
     # Normalise against a reasonable saturation point
     return min(hits / max(len(_NEGATIVE_WORDS) * 0.20, 1), 1.0)
 
 
 def _heuristic_category_probs(text: str) -> dict[str, float]:
-    """Assign category probabilities from keyword overlap counts."""
+    """Assign category probabilities from keyword overlap (whole-word matches)."""
+    import re
     lower = text.lower()
     scores: dict[str, float] = {}
     for cat, kws in _CATEGORY_KEYWORDS.items():
-        scores[cat] = sum(1 for kw in kws if kw in lower)
+        scores[cat] = sum(
+            1 for kw in kws
+            if re.search(r'\b' + re.escape(kw) + r'\b', lower)
+        )
 
     total = sum(scores.values()) or 1.0
     probs = {cat: round(s / total, 4) for cat, s in scores.items()}
@@ -310,7 +319,11 @@ class NLPEngine:
         )
         with torch.no_grad():
             logits = self._model(**inputs).logits
-            probs_tensor = torch.softmax(logits, dim=-1).squeeze().tolist()
+            probs_raw = torch.softmax(logits, dim=-1).squeeze()
+            # Guard: if batch dim was squeezed away for 1-class output, ensure list
+            probs_tensor_list = probs_raw.tolist()
+            if isinstance(probs_tensor_list, float):
+                probs_tensor_list = [probs_tensor_list]
 
         label_map: dict[int, str] = {
             i: cat for i, cat in enumerate(CAMPUS_CATEGORIES)
@@ -318,7 +331,7 @@ class NLPEngine:
         if hasattr(self._model, "config") and hasattr(self._model.config, "id2label") and self._model.config.id2label:
             label_map = {int(k): v for k, v in self._model.config.id2label.items()}
 
-        cat_probs = {label_map.get(i, CAMPUS_CATEGORIES[i % len(CAMPUS_CATEGORIES)]): round(float(p), 4) for i, p in enumerate(probs_tensor)}
+        cat_probs = {label_map.get(i, CAMPUS_CATEGORIES[i % len(CAMPUS_CATEGORIES)]): round(float(p), 4) for i, p in enumerate(probs_tensor_list)}
 
         return self._build_result(text, cat_probs)
 
