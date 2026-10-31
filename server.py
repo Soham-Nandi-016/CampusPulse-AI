@@ -18,6 +18,21 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 
+# ── Windows UTF-8 Console Encoding Fix ───────────────────────────────────────
+# Ensures emoji/unicode in loguru output never crashes on Windows cp1252 stdout
+if sys.platform == "win32":
+    import codecs
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    if hasattr(sys.stderr, "reconfigure"):
+        try:
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from loguru import logger
 from PIL import Image
@@ -53,6 +68,24 @@ from engines.vision_engine import VisionEngine, VisionResult
 app = Flask(__name__, template_folder=str(ROOT_DIR / "templates"), static_folder=str(ROOT_DIR / "static"))
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "campuspulse-secret-key-2024")
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max upload
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+
+
+@app.after_request
+def add_cache_control_headers(response):
+    """Prevent aggressive browser caching during development."""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@app.context_processor
+def inject_cache_bust():
+    """Inject dynamic asset version timestamp for cache busting."""
+    import time
+    return {"asset_version": int(time.time())}
 
 UPLOAD_FOLDER = ROOT_DIR / "static" / "uploads"
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -369,6 +402,6 @@ if __name__ == "__main__":
         logger.warning(f"Could not auto-seed tickets: {err}")
 
     port = int(os.getenv("PORT", 5000))
-    host = os.getenv("HOST", "127.0.0.1")
-    logger.info(f"Starting {APP_TITLE} on http://{host}:{port}")
+    host = os.getenv("HOST", "0.0.0.0")
+    logger.info(f"Starting {APP_TITLE} on http://127.0.0.1:{port} (and http://localhost:{port})")
     app.run(host=host, port=port, debug=False)

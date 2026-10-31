@@ -1,69 +1,188 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-50">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ app_title }} — Admin Triage Dashboard</title>
-  <meta name="description" content="AI-Powered Grievance Triage Dashboard with Priority Scoring, Computer Vision Verification, and Technician Dispatch.">
+  <meta name="description"
+    content="AI-Powered Grievance Triage Dashboard with Priority Scoring, Computer Vision Verification, and Technician Dispatch.">
 
   <!-- Inter & JetBrains Mono Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
 
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS — 3-tier loading strategy:
+       1. Primary CDN (jsDelivr, pinned v3.4.17 – no "Play" size limit)
+       2. Fallback CDN (unpkg mirror)
+       3. Local offline fallback CSS served by Flask             -->
+  <link id="tw-primary" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.17/src/css/index.css"
+    onerror="this.onerror=null;document.getElementById('tw-fallback').removeAttribute('disabled');">
+
+  <!-- Offline fallback – loaded by Flask static route; enabled only if CDN fails -->
+  <link id="tw-fallback" rel="stylesheet" href="{{ url_for('static', filename='tailwind-fallback.css') }}" disabled>
+
+  <!-- Tailwind CDN Play script (primary, for full JIT utility generation) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-          },
-          colors: {
-            brand: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
-              200: '#c7d2fe',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
+    (function () {
+      // Configure Tailwind brand palette if CDN loaded
+      if (window.tailwind && window.tailwind.config) {
+        tailwind.config = {
+          theme: {
+            extend: {
+              fontFamily: {
+                sans: ['Inter', 'system-ui', 'sans-serif'],
+                mono: ['"JetBrains Mono"', 'monospace'],
+              },
+              colors: {
+                brand: {
+                  50: '#eef2ff',
+                  100: '#e0e7ff',
+                  200: '#c7d2fe',
+                  500: '#6366f1',
+                  600: '#4f46e5',
+                  700: '#4338ca',
+                }
+              }
             }
           }
-        }
+        };
       }
-    }
+
+      // Detect if Tailwind CDN failed to load – enable local fallback CSS
+      window.addEventListener('load', function () {
+        var hasTailwind = typeof window.tailwind !== 'undefined';
+        var testEl = document.createElement('div');
+        testEl.className = 'hidden';
+        document.body.appendChild(testEl);
+        var computed = window.getComputedStyle(testEl).display;
+        document.body.removeChild(testEl);
+        var tailwindWorking = (computed === 'none');
+
+        if (!hasTailwind || !tailwindWorking) {
+          console.warn('[CampusPulse] Tailwind CDN unavailable – activating local fallback CSS.');
+          var fb = document.getElementById('tw-fallback');
+          if (fb) fb.removeAttribute('disabled');
+        } else {
+          console.log('[CampusPulse] Tailwind CDN loaded OK.');
+        }
+      });
+    })();
   </script>
 
   <style>
+    /* ── Core structural base always applied ────────────────────── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: 'Inter', system-ui, sans-serif;
       background-color: #f8fafc;
       color: #0f172a;
+      margin: 0;
     }
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* SVG icon size helpers */
+    .w-3\.5 {
+      width: 0.875rem;
+    }
+
+    .h-3\.5 {
+      height: 0.875rem;
+    }
+
+    .w-4 {
+      width: 1rem;
+    }
+
+    .h-4 {
+      height: 1rem;
+    }
+
+    .w-5 {
+      width: 1.25rem;
+    }
+
+    .h-5 {
+      height: 1.25rem;
+    }
+
+    .w-6 {
+      width: 1.5rem;
+    }
+
+    .h-6 {
+      height: 1.5rem;
+    }
+
+    /* Critical display classes – ensure show/hide always works even
+       before Tailwind parses the DOM */
+    .hidden {
+      display: none !important;
+    }
+
+    .flex {
+      display: flex !important;
+    }
+
+    /* Smooth transitions */
     * {
       transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
     }
+
+    /* Modal entry animation */
+    @keyframes modalIn {
+      from {
+        opacity: 0;
+        transform: scale(0.96);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    #ticketModal>div {
+      animation: modalIn 0.15s ease-out both;
+    }
   </style>
 </head>
-<body class="min-h-full flex flex-col bg-slate-50 text-slate-800 antialiased selection:bg-brand-100 selection:text-brand-700">
+
+<body
+  class="min-h-full flex flex-col bg-slate-50 text-slate-800 antialiased selection:bg-brand-100 selection:text-brand-700">
 
   <!-- ── Top Header / Navbar ─────────────────────────────────────────────── -->
-  <header class="bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-xs">
+  <header class="bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <!-- Logo & Brand -->
       <div class="flex items-center gap-3">
         <a href="/" class="flex items-center gap-3 group">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-sm shadow-brand-500/20 group-hover:scale-105 transition duration-150">
+          <div
+            class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-sm shadow-brand-500/20 group-hover:scale-105 transition duration-150">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="font-bold text-slate-900 text-lg tracking-tight">CampusPulse<span class="text-brand-600">.Admin</span></span>
-              <span class="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+              <span class="font-bold text-slate-900 text-lg tracking-tight">CampusPulse<span
+                  class="text-brand-600">.Admin</span></span>
+              <span
+                class="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                 Triage Command
               </span>
             </div>
@@ -74,20 +193,19 @@
 
       <!-- Actions & Nav -->
       <nav class="flex items-center gap-3">
-        <a href="/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold border border-transparent hover:border-slate-200 transition duration-150">
+        <a href="/"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold border border-transparent hover:border-slate-200 transition duration-150">
           <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
           <span class="hidden sm:inline">Student Portal</span>
         </a>
-        <button
-          type="button"
-          id="refreshBtn"
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-2xs hover:border-slate-300 transition duration-150 cursor-pointer"
-          title="Reload tickets"
-        >
+        <button type="button" id="refreshBtn"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-sm hover:border-slate-300 transition duration-150 cursor-pointer"
+          title="Reload tickets">
           <svg id="refreshIcon" class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           <span>Refresh</span>
         </button>
@@ -103,19 +221,18 @@
       <div>
         <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">AI Grievance Triage Board</h1>
         <p class="mt-1 text-sm text-slate-600">
-          Real-time priority ranking based on DistilBERT sentiment urgency, MobileNetV2 defect verification, and Mamdani Fuzzy FIS.
+          Real-time priority ranking based on DistilBERT sentiment urgency, MobileNetV2 defect verification, and Mamdani
+          Fuzzy FIS.
         </p>
       </div>
 
       <div class="flex items-center gap-2">
-        <button
-          type="button"
-          id="seedBtn"
+        <button type="button" id="seedBtn"
           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 transition duration-150 cursor-pointer"
-          title="Seed demo tickets if needed"
-        >
+          title="Seed demo tickets if needed">
           <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
           Seed Demo Tickets
         </button>
@@ -134,13 +251,15 @@
         </div>
         <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
         </div>
       </div>
 
       <!-- KPI 2: Critical Alerts (Priority >= 85) -->
-      <div class="bg-white rounded-2xl shadow-sm border border-rose-200/90 p-5 flex items-center justify-between relative overflow-hidden">
+      <div
+        class="bg-white rounded-2xl shadow-sm border border-rose-200/90 p-5 flex items-center justify-between relative overflow-hidden">
         <div class="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-rose-50/50 pointer-events-none"></div>
         <div>
           <div class="flex items-center gap-1.5">
@@ -150,9 +269,11 @@
           <h3 id="kpiCriticalAlerts" class="text-2xl sm:text-3xl font-extrabold text-rose-600 mt-1">0</h3>
           <p class="text-[11px] text-rose-600/80 mt-1">SLA &lt; 2h dispatch needed</p>
         </div>
-        <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shrink-0">
+        <div
+          class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shrink-0">
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         </div>
       </div>
@@ -162,11 +283,13 @@
         <div>
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Queue</p>
           <h3 id="kpiActiveQueue" class="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-1">0</h3>
-          <p class="text-[11px] text-slate-500 mt-1"><span id="kpiResolvedCount" class="font-semibold text-emerald-600">0</span> resolved</p>
+          <p class="text-[11px] text-slate-500 mt-1"><span id="kpiResolvedCount"
+              class="font-semibold text-emerald-600">0</span> resolved</p>
         </div>
         <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
       </div>
@@ -183,7 +306,7 @@
         </div>
         <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
       </div>
@@ -197,36 +320,30 @@
 
         <!-- Search Bar (lg:col-span-4) -->
         <div class="lg:col-span-4 relative">
-          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <input
-            type="text"
-            id="searchInput"
-            placeholder="Search by student, ID, ticket #, or keyword…"
-            class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150"
-          >
+          <input type="text" id="searchInput" placeholder="Search by student, ID, ticket #, or keyword…"
+            class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150">
         </div>
 
         <!-- Category Filter (lg:col-span-2) -->
         <div class="lg:col-span-2">
-          <select
-            id="categoryFilter"
-            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150"
-          >
+          <select id="categoryFilter"
+            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150">
             <option value="">All Categories</option>
             {% for cat in categories %}
-              <option value="{{ cat }}">{{ category_icons.get(cat, '📌') }} {{ cat }}</option>
+            <option value="{{ cat }}">{{ category_icons.get(cat, '📌') }} {{ cat }}</option>
             {% endfor %}
           </select>
         </div>
 
         <!-- Severity Filter (lg:col-span-2) -->
         <div class="lg:col-span-2">
-          <select
-            id="severityFilter"
-            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150"
-          >
+          <select id="severityFilter"
+            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150">
             <option value="">All Severities</option>
             <option value="Critical">🔴 Critical (85-100)</option>
             <option value="High">🟠 High (65-85)</option>
@@ -237,23 +354,19 @@
 
         <!-- Status Filter (lg:col-span-2) -->
         <div class="lg:col-span-2">
-          <select
-            id="statusFilter"
-            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150"
-          >
+          <select id="statusFilter"
+            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150">
             <option value="">All Statuses</option>
             {% for s in statuses %}
-              <option value="{{ s }}">{{ s }}</option>
+            <option value="{{ s }}">{{ s }}</option>
             {% endfor %}
           </select>
         </div>
 
         <!-- Sort Selector (lg:col-span-2) -->
         <div class="lg:col-span-2">
-          <select
-            id="sortFilter"
-            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150"
-          >
+          <select id="sortFilter"
+            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150">
             <option value="priority_desc">Priority (High to Low)</option>
             <option value="priority_asc">Priority (Low to High)</option>
             <option value="date_desc">Newest First</option>
@@ -266,13 +379,11 @@
       <!-- Filter Stats & Clear Action -->
       <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
         <div>
-          Showing <span id="filteredCount" class="font-bold text-slate-800">0</span> of <span id="totalTicketsCount" class="font-bold text-slate-800">0</span> complaints
+          Showing <span id="filteredCount" class="font-bold text-slate-800">0</span> of <span id="totalTicketsCount"
+            class="font-bold text-slate-800">0</span> complaints
         </div>
-        <button
-          type="button"
-          id="clearFiltersBtn"
-          class="text-brand-600 hover:text-brand-700 font-medium hover:underline cursor-pointer"
-        >
+        <button type="button" id="clearFiltersBtn"
+          class="text-brand-600 hover:text-brand-700 font-medium hover:underline cursor-pointer">
           Reset Filters
         </button>
       </div>
@@ -284,7 +395,8 @@
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs sm:text-sm">
           <thead>
-            <tr class="bg-slate-50 text-slate-600 font-semibold text-[11px] uppercase tracking-wider border-b border-slate-200">
+            <tr
+              class="bg-slate-50 text-slate-600 font-semibold text-[11px] uppercase tracking-wider border-b border-slate-200">
               <th scope="col" class="py-3.5 px-4 sm:px-6">Priority & Severity</th>
               <th scope="col" class="py-3.5 px-4">Ticket ID</th>
               <th scope="col" class="py-3.5 px-4">Student & Dept</th>
@@ -313,7 +425,8 @@
       <!-- Empty State -->
       <div id="tableEmptyState" class="hidden py-16 text-center text-slate-400">
         <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         <p class="text-sm font-semibold text-slate-600">No grievances match your criteria</p>
         <p class="text-xs text-slate-400 mt-1">Try resetting or broadening your search filters</p>
@@ -324,26 +437,27 @@
 
 
   <!-- ── SIDE-BY-SIDE COMPLAINT MODAL ────────────────────────────────────── -->
-  <div id="ticketModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200/90 max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+  <div id="ticketModal"
+    class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div
+      class="bg-white rounded-2xl shadow-2xl border border-slate-200/90 max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden transition-all duration-150">
 
       <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-2">
             <span id="modalTicketId" class="font-mono text-sm font-bold text-slate-900">CP-XXXXXX</span>
-            <span id="modalSeverityBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border">Critical</span>
-            <span id="modalStatusBadge" class="px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Open</span>
+            <span id="modalSeverityBadge"
+              class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border">Critical</span>
+            <span id="modalStatusBadge"
+              class="px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Open</span>
           </div>
         </div>
 
-        <button
-          type="button"
-          id="closeModalBtn"
-          class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 flex items-center justify-center transition duration-150 cursor-pointer"
-        >
+        <button type="button" id="closeModalBtn"
+          class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 flex items-center justify-center transition duration-150 cursor-pointer">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -378,9 +492,11 @@
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Complaint Description</span>
-              <span id="modalCategoryPill" class="text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-0.5 rounded-full"></span>
+              <span id="modalCategoryPill"
+                class="text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-0.5 rounded-full"></span>
             </div>
-            <div id="modalDescription" class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-line">
+            <div id="modalDescription"
+              class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-line">
               —
             </div>
           </div>
@@ -393,26 +509,32 @@
 
           <!-- Attached Image Proof Preview (Physical Evidence) -->
           <div>
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Attached Physical Evidence (MobileNetV2)</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Attached Physical
+              Evidence (MobileNetV2)</span>
 
             <!-- Real uploaded image or preview box -->
-            <div id="modalImageContainer" class="rounded-xl border border-slate-200 overflow-hidden bg-slate-100 flex flex-col items-center justify-center min-h-[160px] p-2">
-              <img id="modalProofImage" src="" alt="Proof Preview" class="hidden max-h-64 w-auto object-contain rounded-lg">
+            <div id="modalImageContainer"
+              class="rounded-xl border border-slate-200 overflow-hidden bg-slate-100 flex flex-col items-center justify-center min-h-[160px] p-2">
+              <img id="modalProofImage" src="" alt="Proof Preview"
+                class="hidden max-h-64 w-auto object-contain rounded-lg">
               <div id="modalNoImagePlaceholder" class="p-6 text-center text-slate-400">
                 <svg class="w-8 h-8 mx-auto mb-1 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <p class="text-xs">No image was attached with this grievance</p>
               </div>
             </div>
 
             <!-- Vision Defect Verification Banner -->
-            <div id="modalVisionBanner" class="mt-2.5 p-3 rounded-xl bg-cyan-50 border border-cyan-200 text-xs flex items-center justify-between">
+            <div id="modalVisionBanner"
+              class="mt-2.5 p-3 rounded-xl bg-cyan-50 border border-cyan-200 text-xs flex items-center justify-between">
               <div>
                 <p class="font-bold text-cyan-950" id="modalDefectLabel">Defect Verified</p>
                 <p class="text-[11px] text-cyan-800" id="modalDefectConfidence">Confidence: 0%</p>
               </div>
-              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-100 text-cyan-800 border border-cyan-200 uppercase">
+              <span
+                class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-100 text-cyan-800 border border-cyan-200 uppercase">
                 Vision Engine
               </span>
             </div>
@@ -427,7 +549,8 @@
           <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <span class="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Mamdani Fuzzy Priority</span>
+                <span class="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Mamdani Fuzzy
+                  Priority</span>
                 <div class="flex items-baseline gap-1.5 mt-0.5">
                   <span id="modalPriorityScore" class="text-3xl font-extrabold text-slate-900">0.0</span>
                   <span class="text-xs text-slate-400 font-medium">/ 100</span>
@@ -480,35 +603,23 @@
 
             <!-- Quick Action Buttons -->
             <div class="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onclick="applyTicketStatus('In Progress', 'Technician dispatched to site.')"
-                class="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer"
-              >
+              <button type="button" onclick="applyTicketStatus('In Progress', 'Technician dispatched to site.')"
+                class="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer">
                 <span>🔧</span> In Progress
               </button>
 
-              <button
-                type="button"
-                onclick="applyTicketStatus('Escalated', 'Escalated to Department Head.')"
-                class="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer"
-              >
+              <button type="button" onclick="applyTicketStatus('Escalated', 'Escalated to Department Head.')"
+                class="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer">
                 <span>🚨</span> Escalate
               </button>
 
-              <button
-                type="button"
-                onclick="applyTicketStatus('Resolved', 'Issue resolved and verified.')"
-                class="w-full py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer"
-              >
+              <button type="button" onclick="applyTicketStatus('Resolved', 'Issue resolved and verified.')"
+                class="w-full py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer">
                 <span>✅</span> Mark Resolved
               </button>
 
-              <button
-                type="button"
-                onclick="applyTicketStatus('Closed', 'Ticket closed.')"
-                class="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer"
-              >
+              <button type="button" onclick="applyTicketStatus('Closed', 'Ticket closed.')"
+                class="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer">
                 <span>📁</span> Close Ticket
               </button>
             </div>
@@ -519,12 +630,10 @@
                 <label for="modalStatusSelect" class="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
                   Manual Status Selection
                 </label>
-                <select
-                  id="modalStatusSelect"
-                  class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150"
-                >
+                <select id="modalStatusSelect"
+                  class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150">
                   {% for s in statuses %}
-                    <option value="{{ s }}">{{ s }}</option>
+                  <option value="{{ s }}">{{ s }}</option>
                   {% endfor %}
                 </select>
               </div>
@@ -533,24 +642,18 @@
                 <label for="modalNotesInput" class="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
                   Technician / Dispatch Notes
                 </label>
-                <input
-                  type="text"
-                  id="modalNotesInput"
-                  placeholder="e.g. Electrical crew dispatched to Lab 4"
-                  class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150"
-                >
+                <input type="text" id="modalNotesInput" placeholder="e.g. Electrical crew dispatched to Lab 4"
+                  class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition duration-150">
               </div>
 
-              <button
-                type="button"
-                id="modalSaveStatusBtn"
-                class="w-full py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-semibold text-xs shadow-xs transition duration-150 cursor-pointer"
-              >
+              <button type="button" id="modalSaveStatusBtn"
+                class="w-full py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-semibold text-xs shadow-sm transition duration-150 cursor-pointer">
                 Save Status & Notes
               </button>
             </div>
 
-            <div id="modalToastMsg" class="hidden p-2 rounded-lg text-center text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <div id="modalToastMsg"
+              class="hidden p-2 rounded-lg text-center text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
               Status updated successfully!
             </div>
           </div>
@@ -565,7 +668,8 @@
 
   <!-- ── Footer ──────────────────────────────────────────────────────────── -->
   <footer class="mt-auto border-t border-slate-200/80 bg-white py-6">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+    <div
+      class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
       <div class="flex items-center gap-2">
         <span class="font-bold text-slate-800">CampusPulse AI</span>
         <span>•</span>
@@ -580,200 +684,201 @@
 
   <!-- ── Application Client JavaScript ───────────────────────────────────── -->
   <script>
-    // State
-    let allTickets = [];
-    let currentTicket = null;
-
-    // Elements
-    const tableBody = document.getElementById('ticketsTableBody');
-    const tableEmptyState = document.getElementById('tableEmptyState');
-    const searchInput = document.getElementById('searchInput');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const severityFilter = document.getElementById('severityFilter');
-    const statusFilter = document.getElementById('statusFilter');
-    const sortFilter = document.getElementById('sortFilter');
-    const filteredCount = document.getElementById('filteredCount');
-    const totalTicketsCount = document.getElementById('totalTicketsCount');
-    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
-    const refreshBtn = document.getElementById('refreshBtn');
-    const refreshIcon = document.getElementById('refreshIcon');
-    const seedBtn = document.getElementById('seedBtn');
-
-    // KPI Elements
-    const kpiTotalTickets = document.getElementById('kpiTotalTickets');
-    const kpiCriticalAlerts = document.getElementById('kpiCriticalAlerts');
-    const kpiActiveQueue = document.getElementById('kpiActiveQueue');
-    const kpiResolvedCount = document.getElementById('kpiResolvedCount');
-    const kpiAvgScore = document.getElementById('kpiAvgScore');
-    const kpiAvgSeverityLabel = document.getElementById('kpiAvgSeverityLabel');
-
-    // Modal Elements
-    const ticketModal = document.getElementById('ticketModal');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const modalTicketId = document.getElementById('modalTicketId');
-    const modalSeverityBadge = document.getElementById('modalSeverityBadge');
-    const modalStatusBadge = document.getElementById('modalStatusBadge');
-    const modalStudentName = document.getElementById('modalStudentName');
-    const modalStudentId = document.getElementById('modalStudentId');
-    const modalDepartment = document.getElementById('modalDepartment');
-    const modalCreatedAt = document.getElementById('modalCreatedAt');
-    const modalCategoryPill = document.getElementById('modalCategoryPill');
-    const modalDescription = document.getElementById('modalDescription');
-    const modalKeywordsBox = document.getElementById('modalKeywordsBox');
-    const modalKeywordsList = document.getElementById('modalKeywordsList');
-    const modalProofImage = document.getElementById('modalProofImage');
-    const modalNoImagePlaceholder = document.getElementById('modalNoImagePlaceholder');
-    const modalVisionBanner = document.getElementById('modalVisionBanner');
-    const modalDefectLabel = document.getElementById('modalDefectLabel');
-    const modalDefectConfidence = document.getElementById('modalDefectConfidence');
-
-    const modalPriorityScore = document.getElementById('modalPriorityScore');
-    const modalGaugeBadge = document.getElementById('modalGaugeBadge');
-    const modalUrgencyVal = document.getElementById('modalUrgencyVal');
-    const modalUrgencyBar = document.getElementById('modalUrgencyBar');
-    const modalNegativityVal = document.getElementById('modalNegativityVal');
-    const modalNegativityBar = document.getElementById('modalNegativityBar');
-    const modalVisualVal = document.getElementById('modalVisualVal');
-    const modalVisualBar = document.getElementById('modalVisualBar');
-
-    const modalStatusSelect = document.getElementById('modalStatusSelect');
-    const modalNotesInput = document.getElementById('modalNotesInput');
-    const modalSaveStatusBtn = document.getElementById('modalSaveStatusBtn');
-    const modalToastMsg = document.getElementById('modalToastMsg');
-
-    // Fetch Tickets on Initial Load
     document.addEventListener('DOMContentLoaded', () => {
+      console.log("Frontend script initialized successfully: Admin Dashboard");
+
+      // State
+      let allTickets = [];
+      let currentTicket = null;
+
+      // Elements
+      const tableBody = document.getElementById('ticketsTableBody');
+      const tableEmptyState = document.getElementById('tableEmptyState');
+      const searchInput = document.getElementById('searchInput');
+      const categoryFilter = document.getElementById('categoryFilter');
+      const severityFilter = document.getElementById('severityFilter');
+      const statusFilter = document.getElementById('statusFilter');
+      const sortFilter = document.getElementById('sortFilter');
+      const filteredCount = document.getElementById('filteredCount');
+      const totalTicketsCount = document.getElementById('totalTicketsCount');
+      const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const refreshIcon = document.getElementById('refreshIcon');
+      const seedBtn = document.getElementById('seedBtn');
+
+      // KPI Elements
+      const kpiTotalTickets = document.getElementById('kpiTotalTickets');
+      const kpiCriticalAlerts = document.getElementById('kpiCriticalAlerts');
+      const kpiActiveQueue = document.getElementById('kpiActiveQueue');
+      const kpiResolvedCount = document.getElementById('kpiResolvedCount');
+      const kpiAvgScore = document.getElementById('kpiAvgScore');
+      const kpiAvgSeverityLabel = document.getElementById('kpiAvgSeverityLabel');
+
+      // Modal Elements
+      const ticketModal = document.getElementById('ticketModal');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const modalTicketId = document.getElementById('modalTicketId');
+      const modalSeverityBadge = document.getElementById('modalSeverityBadge');
+      const modalStatusBadge = document.getElementById('modalStatusBadge');
+      const modalStudentName = document.getElementById('modalStudentName');
+      const modalStudentId = document.getElementById('modalStudentId');
+      const modalDepartment = document.getElementById('modalDepartment');
+      const modalCreatedAt = document.getElementById('modalCreatedAt');
+      const modalCategoryPill = document.getElementById('modalCategoryPill');
+      const modalDescription = document.getElementById('modalDescription');
+      const modalKeywordsBox = document.getElementById('modalKeywordsBox');
+      const modalKeywordsList = document.getElementById('modalKeywordsList');
+      const modalProofImage = document.getElementById('modalProofImage');
+      const modalNoImagePlaceholder = document.getElementById('modalNoImagePlaceholder');
+      const modalVisionBanner = document.getElementById('modalVisionBanner');
+      const modalDefectLabel = document.getElementById('modalDefectLabel');
+      const modalDefectConfidence = document.getElementById('modalDefectConfidence');
+
+      const modalPriorityScore = document.getElementById('modalPriorityScore');
+      const modalGaugeBadge = document.getElementById('modalGaugeBadge');
+      const modalUrgencyVal = document.getElementById('modalUrgencyVal');
+      const modalUrgencyBar = document.getElementById('modalUrgencyBar');
+      const modalNegativityVal = document.getElementById('modalNegativityVal');
+      const modalNegativityBar = document.getElementById('modalNegativityBar');
+      const modalVisualVal = document.getElementById('modalVisualVal');
+      const modalVisualBar = document.getElementById('modalVisualBar');
+
+      const modalStatusSelect = document.getElementById('modalStatusSelect');
+      const modalNotesInput = document.getElementById('modalNotesInput');
+      const modalSaveStatusBtn = document.getElementById('modalSaveStatusBtn');
+      const modalToastMsg = document.getElementById('modalToastMsg');
+
+      // Fetch Tickets on Initial Load
       fetchTickets();
-    });
 
-    // Refresh Action
-    refreshBtn.addEventListener('click', () => {
-      refreshIcon.classList.add('animate-spin');
-      fetchTickets().finally(() => {
-        setTimeout(() => refreshIcon.classList.remove('animate-spin'), 400);
-      });
-    });
-
-    // Seed Demo Tickets Action
-    seedBtn.addEventListener('click', async () => {
-      try {
-        seedBtn.disabled = true;
-        const res = await fetch('/api/tickets/seed', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-          fetchTickets();
-        }
-      } catch (e) {
-        console.error("Seeding error:", e);
-      } finally {
-        seedBtn.disabled = false;
-      }
-    });
-
-    // Main Ticket Fetch
-    async function fetchTickets() {
-      try {
-        const resp = await fetch('/api/tickets');
-        const data = await resp.json();
-        if (data.success) {
-          allTickets = data.tickets || [];
-          updateKPIs(allTickets);
-          applyFiltersAndRender();
-        }
-      } catch (err) {
-        console.error("Failed to fetch tickets:", err);
-        tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-rose-500 font-medium">Failed to load tickets. Please check server.</td></tr>`;
-      }
-    }
-
-    // Update KPI Summary Cards
-    function updateKPIs(tickets) {
-      const total = tickets.length;
-      kpiTotalTickets.textContent = total;
-      totalTicketsCount.textContent = total;
-
-      const critical = tickets.filter(t => (t.priority_score || 0) >= 85 || t.severity === 'Critical').length;
-      kpiCriticalAlerts.textContent = critical;
-
-      const active = tickets.filter(t => t.status === 'Open' || t.status === 'In Progress' || t.status === 'Escalated').length;
-      const resolved = tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length;
-      kpiActiveQueue.textContent = active;
-      kpiResolvedCount.textContent = resolved;
-
-      if (total > 0) {
-        const sum = tickets.reduce((acc, t) => acc + (t.priority_score || 0), 0);
-        const avg = (sum / total).toFixed(1);
-        kpiAvgScore.textContent = avg;
-
-        if (avg >= 85) kpiAvgSeverityLabel.textContent = 'High Campus Risk Alert';
-        else if (avg >= 65) kpiAvgSeverityLabel.textContent = 'Elevated Triage Load';
-        else if (avg >= 35) kpiAvgSeverityLabel.textContent = 'Moderate Severity Levels';
-        else kpiAvgSeverityLabel.textContent = 'Healthy Campus Status';
-      } else {
-        kpiAvgScore.textContent = '0.0';
-      }
-    }
-
-    // Filter, Search, and Sort Logic
-    function applyFiltersAndRender() {
-      const query = searchInput.value.toLowerCase().trim();
-      const cat = categoryFilter.value;
-      const sev = severityFilter.value;
-      const st = statusFilter.value;
-      const sortBy = sortFilter.value;
-
-      let filtered = allTickets.filter(t => {
-        // Search text matching
-        if (query) {
-          const matchId = (t.ticket_id || '').toLowerCase().includes(query);
-          const matchName = (t.student_name || '').toLowerCase().includes(query);
-          const matchStuId = (t.student_id || '').toLowerCase().includes(query);
-          const matchDesc = (t.description || '').toLowerCase().includes(query);
-          const matchDept = (t.department || '').toLowerCase().includes(query);
-          if (!matchId && !matchName && !matchStuId && !matchDesc && !matchDept) return false;
-        }
-
-        // Dropdown filters
-        if (cat && t.category !== cat) return false;
-        if (sev && t.severity !== sev) return false;
-        if (st && t.status !== st) return false;
-
-        return true;
+      // Refresh Action
+      refreshBtn.addEventListener('click', () => {
+        refreshIcon.classList.add('animate-spin');
+        fetchTickets().finally(() => {
+          setTimeout(() => refreshIcon.classList.remove('animate-spin'), 400);
+        });
       });
 
-      // Sorting
-      if (sortBy === 'priority_desc') {
-        filtered.sort((a, b) => (b.priority_score || 0) - (a.priority_score || 0));
-      } else if (sortBy === 'priority_asc') {
-        filtered.sort((a, b) => (a.priority_score || 0) - (b.priority_score || 0));
-      } else if (sortBy === 'date_desc') {
-        filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-      } else if (sortBy === 'date_asc') {
-        filtered.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+      // Seed Demo Tickets Action
+      seedBtn.addEventListener('click', async () => {
+        try {
+          seedBtn.disabled = true;
+          const res = await fetch('/api/tickets/seed', { method: 'POST' });
+          const data = await res.json();
+          if (data.success) {
+            fetchTickets();
+          }
+        } catch (e) {
+          console.error("Seeding error:", e);
+        } finally {
+          seedBtn.disabled = false;
+        }
+      });
+
+      // Main Ticket Fetch
+      async function fetchTickets() {
+        try {
+          const resp = await fetch('/api/tickets');
+          const data = await resp.json();
+          if (data.success) {
+            allTickets = data.tickets || [];
+            updateKPIs(allTickets);
+            applyFiltersAndRender();
+          }
+        } catch (err) {
+          console.error("Failed to fetch tickets:", err);
+          tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-rose-500 font-medium">Failed to load tickets. Please check server.</td></tr>`;
+        }
       }
 
-      filteredCount.textContent = filtered.length;
-      renderTable(filtered);
-    }
+      // Update KPI Summary Cards
+      function updateKPIs(tickets) {
+        const total = tickets.length;
+        kpiTotalTickets.textContent = total;
+        totalTicketsCount.textContent = total;
 
-    // Render Table Rows
-    function renderTable(tickets) {
-      if (tickets.length === 0) {
-        tableBody.innerHTML = '';
-        tableEmptyState.classList.remove('hidden');
-        return;
+        const critical = tickets.filter(t => (t.priority_score || 0) >= 85 || t.severity === 'Critical').length;
+        kpiCriticalAlerts.textContent = critical;
+
+        const active = tickets.filter(t => t.status === 'Open' || t.status === 'In Progress' || t.status === 'Escalated').length;
+        const resolved = tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length;
+        kpiActiveQueue.textContent = active;
+        kpiResolvedCount.textContent = resolved;
+
+        if (total > 0) {
+          const sum = tickets.reduce((acc, t) => acc + (t.priority_score || 0), 0);
+          const avg = (sum / total).toFixed(1);
+          kpiAvgScore.textContent = avg;
+
+          if (avg >= 85) kpiAvgSeverityLabel.textContent = 'High Campus Risk Alert';
+          else if (avg >= 65) kpiAvgSeverityLabel.textContent = 'Elevated Triage Load';
+          else if (avg >= 35) kpiAvgSeverityLabel.textContent = 'Moderate Severity Levels';
+          else kpiAvgSeverityLabel.textContent = 'Healthy Campus Status';
+        } else {
+          kpiAvgScore.textContent = '0.0';
+        }
       }
 
-      tableEmptyState.classList.add('hidden');
-      tableBody.innerHTML = tickets.map(t => {
-        const priority = (t.priority_score || 0).toFixed(1);
-        const severity = t.severity || 'Low';
-        const sevClass = getSeverityBadgeClass(severity);
-        const statusClass = getStatusBadgeClass(t.status || 'Open');
-        const formattedDate = formatDate(t.created_at);
-        const catIcon = getCategoryIcon(t.category);
+      // Filter, Search, and Sort Logic
+      function applyFiltersAndRender() {
+        const query = searchInput.value.toLowerCase().trim();
+        const cat = categoryFilter.value;
+        const sev = severityFilter.value;
+        const st = statusFilter.value;
+        const sortBy = sortFilter.value;
 
-        return `
+        let filtered = allTickets.filter(t => {
+          // Search text matching
+          if (query) {
+            const matchId = (t.ticket_id || '').toLowerCase().includes(query);
+            const matchName = (t.student_name || '').toLowerCase().includes(query);
+            const matchStuId = (t.student_id || '').toLowerCase().includes(query);
+            const matchDesc = (t.description || '').toLowerCase().includes(query);
+            const matchDept = (t.department || '').toLowerCase().includes(query);
+            if (!matchId && !matchName && !matchStuId && !matchDesc && !matchDept) return false;
+          }
+
+          // Dropdown filters
+          if (cat && t.category !== cat) return false;
+          if (sev && t.severity !== sev) return false;
+          if (st && t.status !== st) return false;
+
+          return true;
+        });
+
+        // Sorting
+        if (sortBy === 'priority_desc') {
+          filtered.sort((a, b) => (b.priority_score || 0) - (a.priority_score || 0));
+        } else if (sortBy === 'priority_asc') {
+          filtered.sort((a, b) => (a.priority_score || 0) - (b.priority_score || 0));
+        } else if (sortBy === 'date_desc') {
+          filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        } else if (sortBy === 'date_asc') {
+          filtered.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+        }
+
+        filteredCount.textContent = filtered.length;
+        renderTable(filtered);
+      }
+
+      // Render Table Rows
+      function renderTable(tickets) {
+        if (tickets.length === 0) {
+          tableBody.innerHTML = '';
+          tableEmptyState.classList.remove('hidden');
+          return;
+        }
+
+        tableEmptyState.classList.add('hidden');
+        tableBody.innerHTML = tickets.map(t => {
+          const priority = (t.priority_score || 0).toFixed(1);
+          const severity = t.severity || 'Low';
+          const sevClass = getSeverityBadgeClass(severity);
+          const statusClass = getStatusBadgeClass(t.status || 'Open');
+          const formattedDate = formatDate(t.created_at);
+          const catIcon = getCategoryIcon(t.category);
+
+          return `
           <tr class="hover:bg-slate-50/80 transition duration-150 cursor-pointer group" onclick="openTicketModal('${t.ticket_id}')">
             <!-- Priority & Score -->
             <td class="py-3.5 px-4 sm:px-6 whitespace-nowrap">
@@ -846,244 +951,252 @@
             </td>
           </tr>
         `;
-      }).join('');
-    }
-
-    // Modal Display & Side-by-Side Detail View
-    function openTicketModal(ticketId) {
-      currentTicket = allTickets.find(t => t.ticket_id === ticketId);
-      if (!currentTicket) return;
-
-      const t = currentTicket;
-      const priority = (t.priority_score || 0).toFixed(1);
-      const severity = t.severity || 'Low';
-
-      modalTicketId.textContent = t.ticket_id;
-      modalStudentName.textContent = t.student_name || 'Anonymous';
-      modalStudentId.textContent = t.student_id || '—';
-      modalDepartment.textContent = t.department || '—';
-      modalCreatedAt.textContent = formatDate(t.created_at, true);
-      modalDescription.textContent = t.description || 'No description provided.';
-      modalCategoryPill.textContent = `${getCategoryIcon(t.category)} ${t.category || 'General'}`;
-
-      // Status & Severity Badges
-      modalSeverityBadge.textContent = severity;
-      modalSeverityBadge.className = `px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${getSeverityBadgeClass(severity)}`;
-
-      modalStatusBadge.textContent = t.status || 'Open';
-      modalStatusBadge.className = `px-2 py-0.5 rounded-md text-xs font-semibold ${getStatusBadgeClass(t.status || 'Open')}`;
-
-      // Right Side Score & Bars
-      modalPriorityScore.textContent = priority;
-      modalGaugeBadge.textContent = severity;
-      modalGaugeBadge.className = `px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider ${getSeverityBadgeClass(severity)}`;
-
-      const urgPct = Math.round((t.urgency_score || 0) * 100);
-      const negPct = Math.round((t.negativity_score || 0) * 100);
-      const visPct = Math.round((t.visual_conf || 0) * 100);
-
-      modalUrgencyVal.textContent = `${urgPct}%`;
-      modalUrgencyBar.style.width = `${urgPct}%`;
-
-      modalNegativityVal.textContent = `${negPct}%`;
-      modalNegativityBar.style.width = `${negPct}%`;
-
-      modalVisualVal.textContent = `${visPct}%`;
-      modalVisualBar.style.width = `${visPct}%`;
-
-      // Keywords
-      modalKeywordsList.innerHTML = '';
-      if (t.keywords && t.keywords.length > 0) {
-        modalKeywordsBox.classList.remove('hidden');
-        t.keywords.forEach(kw => {
-          const chip = document.createElement('span');
-          chip.className = 'px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[10px] font-medium border border-slate-200';
-          chip.textContent = `#${kw}`;
-          modalKeywordsList.appendChild(chip);
-        });
-      } else {
-        modalKeywordsBox.classList.add('hidden');
+        }).join('');
       }
 
-      // Proof Image Display
-      if (t.has_image) {
-        modalNoImagePlaceholder.classList.add('hidden');
-        modalVisionBanner.classList.remove('hidden');
-        modalDefectLabel.textContent = t.defect_label || 'Physical Defect Verified';
-        modalDefectConfidence.textContent = `MobileNetV2 Confidence: ${visPct}%`;
+      // Modal Display & Side-by-Side Detail View
+      function openTicketModal(ticketId) {
+        currentTicket = allTickets.find(t => t.ticket_id === ticketId);
+        if (!currentTicket) return;
 
-        if (t.image_url) {
-          modalProofImage.src = t.image_url;
-          modalProofImage.classList.remove('hidden');
+        const t = currentTicket;
+        const priority = (t.priority_score || 0).toFixed(1);
+        const severity = t.severity || 'Low';
+
+        modalTicketId.textContent = t.ticket_id;
+        modalStudentName.textContent = t.student_name || 'Anonymous';
+        modalStudentId.textContent = t.student_id || '—';
+        modalDepartment.textContent = t.department || '—';
+        modalCreatedAt.textContent = formatDate(t.created_at, true);
+        modalDescription.textContent = t.description || 'No description provided.';
+        modalCategoryPill.textContent = `${getCategoryIcon(t.category)} ${t.category || 'General'}`;
+
+        // Status & Severity Badges
+        modalSeverityBadge.textContent = severity;
+        modalSeverityBadge.className = `px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${getSeverityBadgeClass(severity)}`;
+
+        modalStatusBadge.textContent = t.status || 'Open';
+        modalStatusBadge.className = `px-2 py-0.5 rounded-md text-xs font-semibold ${getStatusBadgeClass(t.status || 'Open')}`;
+
+        // Right Side Score & Bars
+        modalPriorityScore.textContent = priority;
+        modalGaugeBadge.textContent = severity;
+        modalGaugeBadge.className = `px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider ${getSeverityBadgeClass(severity)}`;
+
+        const urgPct = Math.round((t.urgency_score || 0) * 100);
+        const negPct = Math.round((t.negativity_score || 0) * 100);
+        const visPct = Math.round((t.visual_conf || 0) * 100);
+
+        modalUrgencyVal.textContent = `${urgPct}%`;
+        modalUrgencyBar.style.width = `${urgPct}%`;
+
+        modalNegativityVal.textContent = `${negPct}%`;
+        modalNegativityBar.style.width = `${negPct}%`;
+
+        modalVisualVal.textContent = `${visPct}%`;
+        modalVisualBar.style.width = `${visPct}%`;
+
+        // Keywords
+        modalKeywordsList.innerHTML = '';
+        if (t.keywords && t.keywords.length > 0) {
+          modalKeywordsBox.classList.remove('hidden');
+          t.keywords.forEach(kw => {
+            const chip = document.createElement('span');
+            chip.className = 'px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[10px] font-medium border border-slate-200';
+            chip.textContent = `#${kw}`;
+            modalKeywordsList.appendChild(chip);
+          });
         } else {
-          modalProofImage.classList.add('hidden');
-          modalNoImagePlaceholder.innerHTML = `
+          modalKeywordsBox.classList.add('hidden');
+        }
+
+        // Proof Image Display
+        if (t.has_image) {
+          modalNoImagePlaceholder.classList.add('hidden');
+          modalVisionBanner.classList.remove('hidden');
+          modalDefectLabel.textContent = t.defect_label || 'Physical Defect Verified';
+          modalDefectConfidence.textContent = `MobileNetV2 Confidence: ${visPct}%`;
+
+          if (t.image_url) {
+            modalProofImage.src = t.image_url;
+            modalProofImage.classList.remove('hidden');
+          } else {
+            modalProofImage.classList.add('hidden');
+            modalNoImagePlaceholder.innerHTML = `
             <div class="p-4 text-center">
               <span class="text-2xl">📸</span>
               <p class="text-xs font-bold text-slate-700 mt-1">Image Proof Verified via MobileNetV2</p>
               <p class="text-[11px] text-slate-500">${escapeHtml(t.defect_label || 'Defect Verified')}</p>
             </div>
           `;
-          modalNoImagePlaceholder.classList.remove('hidden');
-        }
-      } else {
-        modalProofImage.classList.add('hidden');
-        modalNoImagePlaceholder.innerHTML = `
+            modalNoImagePlaceholder.classList.remove('hidden');
+          }
+        } else {
+          modalProofImage.classList.add('hidden');
+          modalNoImagePlaceholder.innerHTML = `
           <svg class="w-8 h-8 mx-auto mb-1 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
           <p class="text-xs text-slate-400">No image attached with this grievance</p>
         `;
-        modalNoImagePlaceholder.classList.remove('hidden');
-        modalVisionBanner.classList.add('hidden');
+          modalNoImagePlaceholder.classList.remove('hidden');
+          modalVisionBanner.classList.add('hidden');
+        }
+
+        // Populate Status Selector
+        modalStatusSelect.value = t.status || 'Open';
+        modalNotesInput.value = '';
+        modalToastMsg.classList.add('hidden');
+
+        ticketModal.classList.remove('hidden');
       }
 
-      // Populate Status Selector
-      modalStatusSelect.value = t.status || 'Open';
-      modalNotesInput.value = '';
-      modalToastMsg.classList.add('hidden');
-
-      ticketModal.classList.remove('hidden');
-    }
-
-    // Close Modal
-    closeModalBtn.addEventListener('click', () => {
-      ticketModal.classList.add('hidden');
-      currentTicket = null;
-    });
-
-    ticketModal.addEventListener('click', (e) => {
-      if (e.target === ticketModal) {
+      // Close Modal
+      closeModalBtn.addEventListener('click', () => {
         ticketModal.classList.add('hidden');
         currentTicket = null;
-      }
-    });
+      });
 
-    // 1-Click Status Update / Dispatch
-    async function applyTicketStatus(newStatus, notes = '') {
-      if (!currentTicket) return;
-      await updateTicketOnServer(currentTicket.ticket_id, newStatus, notes);
-    }
-
-    // Save Status from Dropdown
-    modalSaveStatusBtn.addEventListener('click', async () => {
-      if (!currentTicket) return;
-      const newStatus = modalStatusSelect.value;
-      const notes = modalNotesInput.value.trim();
-      await updateTicketOnServer(currentTicket.ticket_id, newStatus, notes);
-    });
-
-    async function updateTicketOnServer(ticketId, newStatus, notes = '') {
-      try {
-        modalSaveStatusBtn.disabled = true;
-        const resp = await fetch('/api/tickets/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ticket_id: ticketId,
-            status: newStatus,
-            notes: notes
-          })
-        });
-
-        const data = await resp.json();
-        if (data.success) {
-          // Update local state
-          const target = allTickets.find(t => t.ticket_id === ticketId);
-          if (target) {
-            target.status = newStatus;
-          }
-          if (currentTicket && currentTicket.ticket_id === ticketId) {
-            currentTicket.status = newStatus;
-            modalStatusBadge.textContent = newStatus;
-            modalStatusBadge.className = `px-2 py-0.5 rounded-md text-xs font-semibold ${getStatusBadgeClass(newStatus)}`;
-            modalStatusSelect.value = newStatus;
-          }
-
-          // Show Toast Feedback
-          modalToastMsg.textContent = `Status successfully updated to "${newStatus}"!`;
-          modalToastMsg.classList.remove('hidden');
-          setTimeout(() => { modalToastMsg.classList.add('hidden'); }, 2000);
-
-          updateKPIs(allTickets);
-          applyFiltersAndRender();
-        } else {
-          alert('Failed to update status: ' + (data.error || 'Unknown error'));
+      ticketModal.addEventListener('click', (e) => {
+        if (e.target === ticketModal) {
+          ticketModal.classList.add('hidden');
+          currentTicket = null;
         }
-      } catch (err) {
-        console.error('Update error:', err);
-        alert('Server communication error.');
-      } finally {
-        modalSaveStatusBtn.disabled = false;
+      });
+
+      // 1-Click Status Update / Dispatch
+      async function applyTicketStatus(newStatus, notes = '') {
+        if (!currentTicket) return;
+        await updateTicketOnServer(currentTicket.ticket_id, newStatus, notes);
       }
-    }
 
-    // Filter event listeners
-    searchInput.addEventListener('input', applyFiltersAndRender);
-    categoryFilter.addEventListener('change', applyFiltersAndRender);
-    severityFilter.addEventListener('change', applyFiltersAndRender);
-    statusFilter.addEventListener('change', applyFiltersAndRender);
-    sortFilter.addEventListener('change', applyFiltersAndRender);
+      // Save Status from Dropdown
+      modalSaveStatusBtn.addEventListener('click', async () => {
+        if (!currentTicket) return;
+        const newStatus = modalStatusSelect.value;
+        const notes = modalNotesInput.value.trim();
+        await updateTicketOnServer(currentTicket.ticket_id, newStatus, notes);
+      });
 
-    clearFiltersBtn.addEventListener('click', () => {
-      searchInput.value = '';
-      categoryFilter.value = '';
-      severityFilter.value = '';
-      statusFilter.value = '';
-      sortFilter.value = 'priority_desc';
-      applyFiltersAndRender();
-    });
+      async function updateTicketOnServer(ticketId, newStatus, notes = '') {
+        try {
+          modalSaveStatusBtn.disabled = true;
+          const resp = await fetch('/api/tickets/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticket_id: ticketId,
+              status: newStatus,
+              notes: notes
+            })
+          });
 
-    // Helper Functions
-    function getSeverityBadgeClass(sev) {
-      if (sev === 'Critical') return 'bg-rose-50 text-rose-700 border-rose-200';
-      if (sev === 'High') return 'bg-orange-50 text-orange-700 border-orange-200';
-      if (sev === 'Medium') return 'bg-amber-50 text-amber-700 border-amber-200';
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    }
+          const data = await resp.json();
+          if (data.success) {
+            // Update local state
+            const target = allTickets.find(t => t.ticket_id === ticketId);
+            if (target) {
+              target.status = newStatus;
+            }
+            if (currentTicket && currentTicket.ticket_id === ticketId) {
+              currentTicket.status = newStatus;
+              modalStatusBadge.textContent = newStatus;
+              modalStatusBadge.className = `px-2 py-0.5 rounded-md text-xs font-semibold ${getStatusBadgeClass(newStatus)}`;
+              modalStatusSelect.value = newStatus;
+            }
 
-    function getStatusBadgeClass(status) {
-      if (status === 'Open') return 'bg-blue-50 text-blue-700 border border-blue-200';
-      if (status === 'In Progress') return 'bg-amber-50 text-amber-700 border border-amber-200';
-      if (status === 'Escalated') return 'bg-rose-50 text-rose-700 border border-rose-200';
-      if (status === 'Resolved') return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-      return 'bg-slate-100 text-slate-700 border border-slate-200';
-    }
+            // Show Toast Feedback
+            modalToastMsg.textContent = `Status successfully updated to "${newStatus}"!`;
+            modalToastMsg.classList.remove('hidden');
+            setTimeout(() => { modalToastMsg.classList.add('hidden'); }, 2000);
 
-    function getCategoryIcon(cat) {
-      const map = {
-        'Academics': '📚',
-        'Facilities': '🏛️',
-        'Electrical / IT': '⚡',
-        'Sanitation': '🧹',
-        'Administration': '🏫'
-      };
-      return map[cat] || '📌';
-    }
-
-    function formatDate(isoStr, full = false) {
-      if (!isoStr) return '—';
-      try {
-        const d = new Date(isoStr);
-        if (isNaN(d.getTime())) return isoStr;
-        if (full) {
-          return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            updateKPIs(allTickets);
+            applyFiltersAndRender();
+          } else {
+            alert('Failed to update status: ' + (data.error || 'Unknown error'));
+          }
+        } catch (err) {
+          console.error('Update error:', err);
+          alert('Server communication error.');
+        } finally {
+          modalSaveStatusBtn.disabled = false;
         }
-        return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-      } catch (e) {
-        return isoStr;
       }
-    }
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
+      // Filter event listeners
+      searchInput.addEventListener('input', applyFiltersAndRender);
+      categoryFilter.addEventListener('change', applyFiltersAndRender);
+      severityFilter.addEventListener('change', applyFiltersAndRender);
+      statusFilter.addEventListener('change', applyFiltersAndRender);
+      sortFilter.addEventListener('change', applyFiltersAndRender);
+
+      clearFiltersBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        categoryFilter.value = '';
+        severityFilter.value = '';
+        statusFilter.value = '';
+        sortFilter.value = 'priority_desc';
+        applyFiltersAndRender();
+      });
+
+      // Helper Functions
+      function getSeverityBadgeClass(sev) {
+        if (sev === 'Critical') return 'bg-rose-50 text-rose-700 border-rose-200';
+        if (sev === 'High') return 'bg-orange-50 text-orange-700 border-orange-200';
+        if (sev === 'Medium') return 'bg-amber-50 text-amber-700 border-amber-200';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      }
+
+      function getStatusBadgeClass(status) {
+        if (status === 'Open') return 'bg-blue-50 text-blue-700 border border-blue-200';
+        if (status === 'In Progress') return 'bg-amber-50 text-amber-700 border border-amber-200';
+        if (status === 'Escalated') return 'bg-rose-50 text-rose-700 border border-rose-200';
+        if (status === 'Resolved') return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+        return 'bg-slate-100 text-slate-700 border border-slate-200';
+      }
+
+      function getCategoryIcon(cat) {
+        const map = {
+          'Academics': '📚',
+          'Facilities': '🏛️',
+          'Electrical / IT': '⚡',
+          'Sanitation': '🧹',
+          'Administration': '🏫'
+        };
+        return map[cat] || '📌';
+      }
+
+      function formatDate(isoStr, full = false) {
+        if (!isoStr) return '—';
+        try {
+          const d = new Date(isoStr);
+          if (isNaN(d.getTime())) return isoStr;
+          if (full) {
+            return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          }
+          return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        } catch (e) {
+          return isoStr;
+        }
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // Expose functions for inline HTML onclick handlers
+      window.openTicketModal = openTicketModal;
+      window.applyTicketStatus = applyTicketStatus;
+
+      console.log("All admin triage dashboard DOM event listeners registered successfully.");
+    });
   </script>
 </body>
+
 </html>
